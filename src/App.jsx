@@ -1,4 +1,4 @@
-// ФИНАЛЬНАЯ ВЕРСИЯ С ПРОВЕРКОЙ ПОСЛЕДОВАТЕЛЬНОСТИ
+// ИСПРАВЛЕННАЯ ВЕРСИЯ - УЛУЧШЕННОЕ УПРАВЛЕНИЕ
 // Скопируй этот код в src/App.jsx
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -13,6 +13,7 @@ const WarehouseGame = () => {
   const [cargo, setCargo] = useState([]);
   const [moves, setMoves] = useState(20);
   const actionCooldownRef = useRef(false);
+  const keysPressed = useRef(new Set()); // Отслеживание нажатых клавиш
   
   const [storage, setStorage] = useState({
     green: [
@@ -193,15 +194,21 @@ const WarehouseGame = () => {
     });
   }, [gameState, forkliftPos, storage, collected, cargo]);
 
+  // УЛУЧШЕННОЕ клавиатурное управление - БЕЗ ЗАЛИПАНИЯ
   useEffect(() => {
     if (gameState !== 'playing') return;
 
     const handleKeyDown = (e) => {
+      // Предотвращаем прокрутку страницы
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
         e.preventDefault();
       }
       
-      if (e.repeat) return;
+      // Если клавиша уже нажата - игнорируем
+      if (keysPressed.current.has(e.key)) return;
+      
+      // Добавляем клавишу в набор нажатых
+      keysPressed.current.add(e.key);
       
       switch(e.key) {
         case 'ArrowUp': 
@@ -224,9 +231,30 @@ const WarehouseGame = () => {
       }
     };
     
+    const handleKeyUp = (e) => {
+      // Убираем клавишу из набора при отпускании
+      keysPressed.current.delete(e.key);
+    };
+    
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      keysPressed.current.clear();
+    };
   }, [gameState, moveForkift, handleAction]);
+
+  // УЛУЧШЕННОЕ тач-управление - клик по клетке берёт товар
+  const handleCellClick = useCallback((x, y) => {
+    if (gameState !== 'playing') return;
+    
+    // Если кликнули на клетку с погрузчиком - пытаемся взять товар
+    if (x === forkliftPos.x && y === forkliftPos.y) {
+      handleAction();
+    }
+  }, [gameState, forkliftPos, handleAction]);
 
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
@@ -254,8 +282,8 @@ const WarehouseGame = () => {
     const distanceY = touchStart.y - touchEnd.y;
     const isHorizontalSwipe = Math.abs(distanceX) > Math.abs(distanceY);
     
+    // Короткий тап - НЕ вызываем handleAction (только клик по клетке)
     if (Math.abs(distanceX) < minSwipeDistance && Math.abs(distanceY) < minSwipeDistance) {
-      handleAction();
       return;
     }
     
@@ -266,7 +294,6 @@ const WarehouseGame = () => {
     }
   };
 
-  // ПРОВЕРКА ТОЧНОЙ ПОСЛЕДОВАТЕЛЬНОСТИ
   useEffect(() => {
     if (gameState !== 'playing') return;
     
@@ -282,7 +309,6 @@ const WarehouseGame = () => {
       const orderSequence = currentOrder.items;
       const cargoSequence = cargo;
       
-      // Проверка ТОЧНОЙ последовательности (не сортируем!)
       const isCorrectSequence = orderSequence.length === cargoSequence.length &&
                                 orderSequence.every((item, index) => item === cargoSequence[index]);
       
@@ -306,7 +332,6 @@ const WarehouseGame = () => {
         }, 300);
         return () => clearTimeout(timeout);
       } else {
-        // НЕПРАВИЛЬНАЯ ПОСЛЕДОВАТЕЛЬНОСТЬ - сброс
         const timeout = setTimeout(() => {
           setCargo([]);
           setCollected([]);
@@ -327,6 +352,7 @@ const WarehouseGame = () => {
     setMoves(20);
     setLastOrderColors([]);
     actionCooldownRef.current = false;
+    keysPressed.current.clear();
     
     setStorage({
       green: [
@@ -370,22 +396,23 @@ const WarehouseGame = () => {
     return (
       <div 
         key={`${x}-${y}`}
-        className={`w-14 h-14 sm:w-16 sm:h-16 border-2 flex items-center justify-center relative ${
+        onClick={() => handleCellClick(x, y)}
+        className={`w-14 h-14 sm:w-16 sm:h-16 border-2 flex items-center justify-center relative cursor-pointer ${
           isExit ? 'bg-yellow-200 border-yellow-500' : 
           isResetZone ? 'bg-red-100 border-red-400' :
           'bg-gray-100 border-gray-300'
-        }`}
+        } ${isForkift && item ? 'ring-4 ring-blue-400' : ''}`}
       >
-        {isExit && <span className="text-[10px] sm:text-xs font-bold">ВЫХОД</span>}
+        {isExit && <span className="text-[10px] sm:text-xs font-bold pointer-events-none">ВЫХОД</span>}
         {isResetZone && (
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center pointer-events-none">
             <RotateCw className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
             <span className="text-[8px] sm:text-[10px] font-bold text-red-600">СБРОС</span>
           </div>
         )}
-        {item && <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded ${itemColor} animate-pulse`}></div>}
+        {item && <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded ${itemColor} animate-pulse pointer-events-none`}></div>}
         {isForkift && (
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <Truck className="w-10 h-10 sm:w-12 sm:h-12 text-yellow-600" />
             {cargo.length > 0 && (
               <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-orange-500 text-white rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-xs font-bold">
@@ -394,9 +421,14 @@ const WarehouseGame = () => {
             )}
           </div>
         )}
+        {isForkift && item && (
+          <div className="absolute bottom-0 left-0 right-0 bg-blue-500 text-white text-[8px] sm:text-[10px] font-bold py-0.5 text-center pointer-events-none">
+            ТАП - ВЗЯТЬ
+          </div>
+        )}
       </div>
     );
-  }, [forkliftPos, storage, collected, cargo]);
+  }, [forkliftPos, storage, collected, cargo, handleCellClick]);
 
   if (gameState === 'intro') {
     return (
@@ -411,7 +443,7 @@ const WarehouseGame = () => {
           </p>
           <div className="bg-gray-100 p-4 rounded-lg mb-6 text-left">
             <p className="text-sm mb-2"><b>Управление:</b></p>
-            <p className="text-sm">📱 <b>Мобильное:</b> Свайп + Тап</p>
+            <p className="text-sm">📱 <b>Мобильное:</b> Свайп для движения, ТАП по клетке погрузчика для взятия груза</p>
             <p className="text-sm">🎮 <b>ПК:</b> Стрелки + Пробел</p>
             <p className="text-sm mb-2">📦 Собери товары → вези на ВЫХОД</p>
             <p className="text-xs text-red-600 font-bold">⚠️ ВАЖНО: Собирай в ТОЧНОЙ последовательности как на карточке!</p>
@@ -527,8 +559,8 @@ const WarehouseGame = () => {
             <div className="bg-gradient-to-r from-blue-500 to-purple-500 text-white p-4 rounded-lg mb-3 md:hidden">
               <p className="text-sm font-bold mb-2">📱 Управление:</p>
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="bg-white/20 p-2 rounded">👆 <b>Свайп</b><br/>Движение</div>
-                <div className="bg-white/20 p-2 rounded">👇 <b>Тап</b><br/>Взять товар</div>
+                <div className="bg-white/20 p-2 rounded">👆 <b>Свайп</b><br/>Движение машинки</div>
+                <div className="bg-white/20 p-2 rounded">👇 <b>Тап по клетке</b><br/>Взять товар</div>
               </div>
               <div className="mt-2 bg-white/20 p-2 rounded text-xs">
                 🔄 <b>Правый угол</b> — Сброс груза
@@ -614,37 +646,4 @@ const WarehouseGame = () => {
                   <div 
                     key={idx}
                     className={`w-8 h-8 rounded relative ${
-                      item === 'green' ? 'bg-green-500' :
-                      item === 'blue' ? 'bg-blue-500' :
-                      'bg-red-500'
-                    }`}
-                  >
-                    <div className="absolute -top-1 -right-1 bg-white text-gray-800 rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold border border-gray-300">
-                      {idx + 1}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs text-gray-600 mb-1">
-                ✅ Вези на ВЫХОД (слева вверху)
-              </p>
-              <p className="text-xs text-red-600 mb-1 font-bold">
-                ⚠️ Проверь последовательность!
-              </p>
-              <p className="text-xs text-orange-600">
-                🔄 Неправильно? Заедь в СБРОС (справа)
-              </p>
-            </div>
-          )}
-
-          <div className="bg-blue-50 border border-blue-300 rounded-lg p-3 text-xs">
-            <p className="font-bold mb-1">💡 Совет:</p>
-            <p>Планируй маршрут заранее - собирай по порядку!</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default WarehouseGame;
+                      item === 'green' ?
