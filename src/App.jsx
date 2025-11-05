@@ -228,12 +228,28 @@ const WarehouseGame = () => {
       keysPressed.current.delete(e.key);
     };
     
+    // Очистка при потере фокуса (когда переключаешься на другую вкладку)
+    const handleBlur = () => {
+      keysPressed.current.clear();
+    };
+    
+    // Очистка при изменении видимости страницы
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        keysPressed.current.clear();
+      }
+    };
+    
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       keysPressed.current.clear();
     };
   }, [gameState, moveForkift, handleAction]);
