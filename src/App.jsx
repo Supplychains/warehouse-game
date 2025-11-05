@@ -1,6 +1,3 @@
-// ИСПРАВЛЕННАЯ ВЕРСИЯ - УЛУЧШЕННОЕ УПРАВЛЕНИЕ
-// Скопируй этот код в src/App.jsx
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Truck, Package, Clock, DollarSign, Trophy, RotateCw } from 'lucide-react';
 
@@ -13,7 +10,7 @@ const WarehouseGame = () => {
   const [cargo, setCargo] = useState([]);
   const [moves, setMoves] = useState(20);
   const actionCooldownRef = useRef(false);
-  const keysPressed = useRef(new Set()); // Отслеживание нажатых клавиш
+  const keysPressed = useRef(new Set());
   
   const [storage, setStorage] = useState({
     green: [
@@ -194,20 +191,16 @@ const WarehouseGame = () => {
     });
   }, [gameState, forkliftPos, storage, collected, cargo]);
 
-  // УЛУЧШЕННОЕ клавиатурное управление - БЕЗ ЗАЛИПАНИЯ
   useEffect(() => {
     if (gameState !== 'playing') return;
 
     const handleKeyDown = (e) => {
-      // Предотвращаем прокрутку страницы
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
         e.preventDefault();
       }
       
-      // Если клавиша уже нажата - игнорируем
       if (keysPressed.current.has(e.key)) return;
       
-      // Добавляем клавишу в набор нажатых
       keysPressed.current.add(e.key);
       
       switch(e.key) {
@@ -232,7 +225,6 @@ const WarehouseGame = () => {
     };
     
     const handleKeyUp = (e) => {
-      // Убираем клавишу из набора при отпускании
       keysPressed.current.delete(e.key);
     };
     
@@ -246,11 +238,9 @@ const WarehouseGame = () => {
     };
   }, [gameState, moveForkift, handleAction]);
 
-  // УЛУЧШЕННОЕ тач-управление - клик по клетке берёт товар
   const handleCellClick = useCallback((x, y) => {
     if (gameState !== 'playing') return;
     
-    // Если кликнули на клетку с погрузчиком - пытаемся взять товар
     if (x === forkliftPos.x && y === forkliftPos.y) {
       handleAction();
     }
@@ -282,7 +272,6 @@ const WarehouseGame = () => {
     const distanceY = touchStart.y - touchEnd.y;
     const isHorizontalSwipe = Math.abs(distanceX) > Math.abs(distanceY);
     
-    // Короткий тап - НЕ вызываем handleAction (только клик по клетке)
     if (Math.abs(distanceX) < minSwipeDistance && Math.abs(distanceY) < minSwipeDistance) {
       return;
     }
@@ -646,4 +635,38 @@ const WarehouseGame = () => {
                   <div 
                     key={idx}
                     className={`w-8 h-8 rounded relative ${
-                      item === 'green' ?
+                      item === 'green' ? 'bg-green-500' :
+                      item === 'blue' ? 'bg-blue-500' :
+                      'bg-red-500'
+                    }`}
+                  >
+                    <div className="absolute -top-1 -right-1 bg-white text-gray-800 rounded-full w-4 h-4 flex items-center justify-center text-xs font-bold border border-gray-300">
+                      {idx + 1}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-600 mb-1">
+                ✅ Вези на ВЫХОД (слева вверху)
+              </p>
+              <p className="text-xs text-red-600 mb-1 font-bold">
+                ⚠️ Проверь последовательность!
+              </p>
+              <p className="text-xs text-orange-600">
+                🔄 Неправильно? Заедь в СБРОС (справа)
+              </p>
+            </div>
+          )}
+
+          <div className="bg-blue-50 border border-blue-300 rounded-lg p-3 text-xs">
+            <p className="font-bold mb-1">💡 Совет:</p>
+            <p className="mb-1">📱 <b>Мобильные:</b> Тапайте прямо по клетке с погрузчиком!</p>
+            <p>🎮 <b>ПК:</b> Используйте пробел для взятия груза</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default WarehouseGame;
